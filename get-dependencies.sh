@@ -79,7 +79,7 @@ git fetch --tags origin
 TAG=$(git tag --sort=-v:refname | grep -E '^wine-[0-9]+\.0(\.[0-9]+)?$' | head -1)
 git checkout "$TAG"
 echo "${TAG#wine-}" > ~/version
-git apply ../patches/wine-dlopen-ntdll.patch
+git apply ../patches/*.patch
 
 mkdir ./build
 cd ./build

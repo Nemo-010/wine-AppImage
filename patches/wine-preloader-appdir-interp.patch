@@ -1,0 +1,52 @@
+--- a/loader/preloader.c
++++ b/loader/preloader.c
+@@ -925,7 +925,7 @@
+         ElfW(Addr) mapstart, mapend, dataend, allocend;
+         off_t mapoff;
+         int prot;
+-      } loadcmds[16], *c;
++      } loadcmds[32], *c;
+     size_t nloadcmds = 0, maplength;
+ 
+     fd = wld_open( name, O_RDONLY );
+@@ -1401,7 +1401,7 @@
+ {
+     long i, *pargc;
+     char **argv, **p;
+-    char *interp, *reserve = NULL;
++    char *interp, *reserve = NULL, *appdir = NULL;
+     struct wld_auxv new_av[8], delete_av[3], *av;
+     struct wld_link_map main_binary_map, ld_so_map;
+     struct wine_preload_info **wine_main_preload_info;
+@@ -1417,7 +1417,9 @@
+     while (*p)
+     {
+         static const char res[] = "WINEPRELOADRESERVE=";
++        static const char ad[] = "APPDIR=";
+         if (!wld_strncmp( *p, res, sizeof(res)-1 )) reserve = *p + sizeof(res) - 1;
++        if (!wld_strncmp( *p, ad, sizeof(ad)-1 )) appdir = *p + sizeof(ad) - 1;
+         p++;
+     }
+ 
+@@ -1468,8 +1470,20 @@
+     /* load the main binary */
+     map_so_lib( argv[1], &main_binary_map );
+ 
+-    /* load the ELF interpreter */
++    /* load the ELF interpreter, expanding a leading $APPDIR */
+     interp = (char *)main_binary_map.l_addr + main_binary_map.l_interp;
++    if (appdir && !wld_strncmp( interp, "$APPDIR/", 8 ))
++    {
++        static char interp_path[4096];
++        char *dst = interp_path;
++        const char *src;
++
++        for (src = appdir; *src && dst < interp_path + sizeof(interp_path) - 1; src++) *dst++ = *src;
++        if (dst > interp_path && dst[-1] != '/' && dst < interp_path + sizeof(interp_path) - 1) *dst++ = '/';
++        for (src = interp + 8; *src && dst < interp_path + sizeof(interp_path) - 1; src++) *dst++ = *src;
++        *dst = 0;
++        interp = interp_path;
++    }
+     map_so_lib( interp, &ld_so_map );
+ 
+     /* store pointer to the preload info into the appropriate main binary variable */

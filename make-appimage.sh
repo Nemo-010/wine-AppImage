@@ -52,14 +52,15 @@ WINEPREFIX=/tmp/wine quick-sharun \
 wget --retry-connrefused --tries=30 https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O ./AppDir/bin/winetricks
 chmod +x ./AppDir/bin/winetricks
 
-# The wine loader is exec'd directly (wine's preloader maps it for child
-# processes), so sharun never gets to wrap it. Marking it as a patched binary
-# makes sharun install the bundled ld-linux at /tmp/.ld-sharun.so.67, which
-# both the kernel and the preloader use.
+# wine's preloader maps the wineloader and its PT_INTERP itself. Point that at
+# the bundled loader through $APPDIR, which the preloader patch expands, and
+# give the wineloader an rpath for the bundled libs and anylinux since the
+# preloader runs outside sharun's --library-path/--preload.
 rm -f ./AppDir/lib/wine/x86_64-unix/wine
 cp /usr/lib/wine/x86_64-unix/wine ./AppDir/lib/wine/x86_64-unix/wine
-patchelf --set-interpreter /tmp/.ld-sharun.so.67 ./AppDir/lib/wine/x86_64-unix/wine
-patchelf --set-interpreter /tmp/.ld-sharun.so.67 ./AppDir/shared/bin/wine
+patchelf --set-interpreter '$APPDIR/lib/ld-linux-x86-64.so.2' ./AppDir/lib/wine/x86_64-unix/wine
+patchelf --set-rpath '$ORIGIN:$ORIGIN/../..:$ORIGIN/../../sharun-preload' ./AppDir/lib/wine/x86_64-unix/wine
+patchelf --add-needed anylinux.so ./AppDir/lib/wine/x86_64-unix/wine
 
 chmod +x ./AppDir/bin/*.hook
 
