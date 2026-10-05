@@ -63,7 +63,8 @@ patchelf --set-interpreter /tmp/"$kek" ./AppDir/lib/wine/x86_64-unix/wine
 # but after 11.8 this causes the binary to break horribly:
 # AppDir/lib/wine/x86_64-unix/wine: oops... not enough space for load commands
 # so we will ahve to make sure anylinux.so loads by adding it as a dependency to the libc
-patchelf --add-needed anylinux.so ./AppDir/shared/lib/libc.so.6
+# anylinux.so lives in lib/sharun-preload, add an rpath so the loader finds it
+patchelf --add-needed anylinux.so --add-rpath '$ORIGIN/sharun-preload' ./AppDir/shared/lib/libc.so.6
 
 cat <<EOF > ./AppDir/bin/random-linker.src.hook
 #!/bin/sh
