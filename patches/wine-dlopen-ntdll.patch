@@ -1,0 +1,12 @@
+--- a/loader/main.c
++++ b/loader/main.c
+@@ -177,7 +177,8 @@
+ 
+     init_reserved_areas();
+ 
+-    if ((handle = try_dlopen( get_self_exe() )) ||
++    if ((handle = dlopen( "ntdll.so", RTLD_NOW )) ||
++        (handle = try_dlopen( get_self_exe() )) ||
+         (handle = try_dlopen( argv[0] )))
+     {
+         void (*init_func)(int, char **) = dlsym( handle, "__wine_main" );

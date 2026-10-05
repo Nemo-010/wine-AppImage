@@ -19,6 +19,7 @@ export DEPLOY_OPENGL=1
 # Deploy dependencies
 mkdir -p /tmp/wine
 WINEPREFIX=/tmp/wine quick-sharun \
+	/usr/lib/wine/x86_64-unix/wine \
 	/usr/bin/wine*             \
 	/usr/lib/wine              \
 	/usr/bin/msidb             \
@@ -51,29 +52,16 @@ WINEPREFIX=/tmp/wine quick-sharun \
 wget --retry-connrefused --tries=30 https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O ./AppDir/bin/winetricks
 chmod +x ./AppDir/bin/winetricks
 
-# alright here the pain starts
-ln -sr ./AppDir/lib/wine/x86_64-unix/*.so* ./AppDir/bin
-
-# this gets broken by sharun somehow
-kek=.$(tr -dc 'A-Za-z0-9_=-' < /dev/urandom | head -c 10)
+# The wine loader is exec'd directly (wine's preloader maps it for child
+# processes), so sharun never gets to wrap it. Marking it as a patched binary
+# makes sharun install the bundled ld-linux at /tmp/.ld-sharun.so.67, which
+# both the kernel and the preloader use.
 rm -f ./AppDir/lib/wine/x86_64-unix/wine
 cp /usr/lib/wine/x86_64-unix/wine ./AppDir/lib/wine/x86_64-unix/wine
-patchelf --set-interpreter /tmp/"$kek" ./AppDir/lib/wine/x86_64-unix/wine
-# we used to run patchelf --add-needed anylinux.so on the wine binary
-# but after 11.8 this causes the binary to break horribly:
-# AppDir/lib/wine/x86_64-unix/wine: oops... not enough space for load commands
-# so we will ahve to make sure anylinux.so loads by adding it as a dependency to the libc
-# anylinux.so lives in lib/sharun-preload, add an rpath so the loader finds it
-patchelf --add-needed anylinux.so --add-rpath '$ORIGIN/sharun-preload' ./AppDir/shared/lib/libc.so.6
+patchelf --set-interpreter /tmp/.ld-sharun.so.67 ./AppDir/lib/wine/x86_64-unix/wine
+patchelf --set-interpreter /tmp/.ld-sharun.so.67 ./AppDir/shared/bin/wine
 
-cat <<EOF > ./AppDir/bin/random-linker.src.hook
-#!/bin/sh
-cp -f "\$APPDIR"/shared/lib/ld-linux*.so* /tmp/"$kek"
-EOF
 chmod +x ./AppDir/bin/*.hook
-
-# Set the lib path to also use wine libs
-echo 'LD_LIBRARY_PATH=${APPDIR}/lib:${APPDIR}/lib/pulseaudio:${APPDIR}/lib/alsa-lib:${APPDIR}/lib/wine/x86_64-unix' >> ./AppDir/.env
 
 # strip windows libs, inspired by alpine linux: 
 # https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/community/wine/APKBUILD
