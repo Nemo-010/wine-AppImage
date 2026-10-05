@@ -52,17 +52,18 @@ WINEPREFIX=/tmp/wine quick-sharun \
 wget --retry-connrefused --tries=30 https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O ./AppDir/bin/winetricks
 chmod +x ./AppDir/bin/winetricks
 
-# wine's preloader maps the wineloader and its PT_INTERP itself. Point that at
-# the bundled loader through $APPDIR, which the preloader patch expands, and
-# give the wineloader an rpath for the bundled libs and anylinux since the
-# preloader runs outside sharun's --library-path/--preload.
+# wine's preloader maps the wineloader and its PT_INTERP itself, so the
+# interpreter has to be found through $APPDIR (the preloader patch expands it).
+# The preloader runs outside sharun, so the wineloader also needs the bundled
+# libs and anylinux on LD_LIBRARY_PATH.
 rm -f ./AppDir/lib/wine/x86_64-unix/wine
 cp /usr/lib/wine/x86_64-unix/wine ./AppDir/lib/wine/x86_64-unix/wine
 patchelf --set-interpreter '$APPDIR/lib/ld-linux-x86-64.so.2' ./AppDir/lib/wine/x86_64-unix/wine
-patchelf --set-rpath '$ORIGIN:$ORIGIN/../..:$ORIGIN/../../sharun-preload' ./AppDir/lib/wine/x86_64-unix/wine
 patchelf --add-needed anylinux.so ./AppDir/lib/wine/x86_64-unix/wine
 
 chmod +x ./AppDir/bin/*.hook
+
+echo 'LD_LIBRARY_PATH=${APPDIR}/lib:${APPDIR}/lib/pulseaudio:${APPDIR}/lib/alsa-lib:${APPDIR}/lib/wine/x86_64-unix:${APPDIR}/lib/sharun-preload' >> ./AppDir/.env
 
 # strip windows libs, inspired by alpine linux: 
 # https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/community/wine/APKBUILD
